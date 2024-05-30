@@ -1,0 +1,7 @@
+FROM golang:1.22.2
+
+COPY ./stock-bublisher ./app
+WORKDIR /app
+
+RUN go buld main.go
+CMD main
