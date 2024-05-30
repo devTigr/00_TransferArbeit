@@ -1,0 +1,6 @@
+services:
+  pub:
+    image: ##von mir gepushtes image von Patricks GitHub
+    container_name: stockPublisher
+    restart: allways
+  
