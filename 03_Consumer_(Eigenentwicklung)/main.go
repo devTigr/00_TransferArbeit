@@ -28,22 +28,27 @@ type StockEvent struct {
 }
 
 func main() {
-	//Umgebungsvariabeln
+	// Umgebungsvariablen lesen
 	mongoURL := os.Getenv("MONGODB_URL")
-	rabitMQURL := os.Getenv("RABBITMQ_URL")
+	rabbitMQURL := os.Getenv("RABBITMQ_URL")
 	queueName := os.Getenv("QUEUENAME")
 
-	//Connect to DBCluster
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	if mongoURL == "" || rabbitMQURL == "" || queueName == "" {
+		failOnError(errors.New("fehlende Umgebungsvariablen"), "Fehlende MONGODB_URL, RABBITMQ_URL oder QUEUENAME")
+	}
+
+	// Verbindung zu MongoDB Cluster
+	ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second) 
 	defer cancel()
-
-	client, err := mongo.Connect(ctx, options.Client().ApplyURI(mongoURL))
-	failOnError(err, "Failed to create a user for MongoDB")
+	
+	clientOpts := options.Client().ApplyURI(mongoURL).SetServerSelectionTimeout(60 * time.Second)
+	client, err := mongo.Connect(ctx, clientOpts)
+	failOnError(err, "Failed to connect to MongoDB")
 	defer client.Disconnect(ctx)
+	
 
-	//connect to RabbitMQ
-	conn, err := amqp.Dial(rabitMQURL)
-
+	// Verbindung zu RabbitMQ
+	conn, err := amqp.Dial(rabbitMQURL)
 	failOnError(err, "Failed to connect to RabbitMQ")
 	defer conn.Close()
 
@@ -51,14 +56,9 @@ func main() {
 	failOnError(err, "Failed to open a channel")
 	defer ch.Close()
 
-	if queueName == "" {
-		err := errors.New("queue missing")
-		failOnError(err, "Failed to fetch the QUEUENAME from Environment")
-	}
-
 	q, err := ch.QueueDeclare(
 		queueName, // name of the queue
-		false,     // durable
+		true,      // durable
 		false,     // delete when unused
 		false,     // exclusive
 		false,     // no-wait
@@ -78,6 +78,7 @@ func main() {
 	failOnError(err, "Failed to register a consumer")
 
 	var events []StockEvent
+	var totalPrice float64
 	counter := 0
 
 	for message := range msgs {
@@ -89,24 +90,26 @@ func main() {
 		}
 
 		events = append(events, event)
-		totalPrice := 0.0
 		totalPrice += event.Price
 		counter++
 
 		if counter == 1000 {
-			// Calculate the average price
+			// Durchschnittspreis berechnen
 			averagePrice := totalPrice / float64(counter)
 
-			// Reset the events slice, counter, and total price
+			// Zurücksetzen des Events-Slice, Zähler und Gesamtpreis
 			events = []StockEvent{}
 			counter = 0
 			totalPrice = 0.0
 
-			// Write the average price to MongoDB
+			// Durchschnittspreis in MongoDB speichern
 			collection := client.Database("stockmarket").Collection("stocks")
-			_, err := collection.InsertOne(ctx, bson.M{"name": queueName, "average_price": averagePrice})
-			failOnError(err, "Failed to insert average price into MongoDB")
+			_, err := collection.InsertOne(ctx, bson.M{"company": queueName, "avgPrice": averagePrice})
+			if err != nil {
+				log.Printf("Failed to insert average price into MongoDB: %s", err)
+			} else {
+				log.Printf("Successfully inserted average price for %s into MongoDB", queueName)
+			}
 		}
 	}
-
 }
