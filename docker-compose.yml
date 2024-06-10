@@ -1,6 +1,32 @@
 services:
   pub:
-    image: ##von mir gepushtes image von Patricks GitHub
+    build: ./01_stock-publisher(publisher) 
+    #image: ##von mir gepushtes image von Patricks GitHub
     container_name: stockPublisher
-    restart: allways
+    environment:
+      - RABBITMQ_URL=amqp://stockmarket:supersecret123@rabbitmq:5672/
+    restart: always
+    depends_on:
+      - rabbitmq
+    networks:
+      - backend
+
+  rabbitmq:
+    image: rabbitmq:3-management
+    restart: always
+    ports:
+      - 5672:5672   # für message transfers
+      - 15672:15672 # für management Dashboard
+    environment:
+      - RABBITMQ_DEFAULT_USER=stockmarket
+      - RABBITMQ_DEFAULT_PASS=supersecret123
+    networks:
+      - backend
+      - frontend
+
+networks:
+  backend:
+    driver: bridge
+  frontend:
+    driver: bridge
   
