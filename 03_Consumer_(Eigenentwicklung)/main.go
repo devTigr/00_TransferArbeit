@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/streadway/amqp"
+	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
 )
@@ -86,19 +87,24 @@ func main() {
 		}
 
 		events = append(events, event)
+		totalPrice := 0.0
+		totalPrice += event.Price
 		counter++
 
 		if counter == 1000 {
-			// Aggregate the events here
-			// Reset the events slice and counter
+			// Calculate the average price
+			averagePrice := totalPrice / float64(counter)
+
+			// Reset the events slice, counter, and total price
 			events = []StockEvent{}
-			aggregatedPrice := 0
+			counter = 0
+			totalPrice = 0.0
 
-			for event := range events {
-				aggregatedPrice ==  aggregatedPrice +)
-			}
-			// todo: push to DB
-
+			// Write the average price to MongoDB
+			collection := client.Database("stockmarket").Collection("stocks")
+			_, err := collection.InsertOne(ctx, bson.M{"company": event.Company, "average_price": averagePrice})
+			failOnError(err, "Failed to insert average price into MongoDB")
 		}
 	}
+
 }

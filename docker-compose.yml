@@ -72,7 +72,26 @@ services:
     #mein gepushtes image verwenden
     build: ./03_Consumer_(Eigenentwicklung)
     environment:
+      - QUEUENAME:"AAPL"
+    depends_on:
+      - rabbitmq
+      - rs0
+  consumer2:
+    #mein gepushtes image verwenden
+    build: ./03_Consumer_(Eigenentwicklung)
+    environment:
       - QUEUENAME:"MSFT"
+    depends_on:
+      - rabbitmq
+      - rs0
+  consumer3:
+    #mein gepushtes image verwenden
+    build: ./03_Consumer_(Eigenentwicklung)
+    environment:
+      - QUEUENAME:"TSLA"
+    depends_on:
+      - rabbitmq
+      - rs0
 
 
   live-viever:
