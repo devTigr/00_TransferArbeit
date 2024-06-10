@@ -28,16 +28,21 @@ type StockEvent struct {
 }
 
 func main() {
+	//Umgebungsvariabeln
+	mongoURL := os.Getenv("MONGODB_URL")
+	rabitMQURL := os.Getenv("RABBITMQ_URL")
+	queueName := os.Getenv("QUEUENAME")
+
 	//Connect to DBCluster
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 
-	client, err := mongo.Connect(ctx, options.Client().ApplyURI("mongodb://localhost:27017/"))
+	client, err := mongo.Connect(ctx, options.Client().ApplyURI(mongoURL))
 	failOnError(err, "Failed to create a user for MongoDB")
 	defer client.Disconnect(ctx)
 
 	//connect to RabbitMQ
-	conn, err := amqp.Dial("amqp://stockmarket:supersecret123@localhost:5672/")
+	conn, err := amqp.Dial(rabitMQURL)
 
 	failOnError(err, "Failed to connect to RabbitMQ")
 	defer conn.Close()
@@ -45,8 +50,6 @@ func main() {
 	ch, err := conn.Channel()
 	failOnError(err, "Failed to open a channel")
 	defer ch.Close()
-
-	queueName := os.Getenv("QUEUENAME")
 
 	if queueName == "" {
 		err := errors.New("queue missing")
