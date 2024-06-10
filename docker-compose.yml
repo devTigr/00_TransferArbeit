@@ -68,6 +68,13 @@ services:
       - ./04_MongoDB_(Clustered)/mongo3_data:/data/db
       - ./04_MongoDB_(Clustered)/mongo3_config:/data/configdb
 
+  consumer1:
+    #mein gepushtes image verwenden
+    build: ./03_Consumer_(Eigenentwicklung)
+    environment:
+      - QUEUENAME:"MSFT"
+
+
   live-viever:
     build: ./05_Stock-Liveview_(Frontend)
     container_name: stockViever
