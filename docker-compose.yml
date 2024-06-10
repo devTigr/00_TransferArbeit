@@ -93,10 +93,9 @@ services:
       - rabbitmq
       - rs0
 
-
-  live-viever:
+  live-viever1:
     build: ./05_Stock-Liveview_(Frontend)
-    container_name: stockViever
+    container_name: stockViever1
     environment:
       - MONGODB_URL=mongodb://127.0.0.1:27017,127.0.0.1:27018,127.0.0.1:27019/?replicaSet=rs0
       - MONGODB_DB:stockmarket
@@ -106,6 +105,31 @@ services:
     #networks:
     #  - frontend
     #  - backend
+
+  live-viever2:
+    build: ./05_Stock-Liveview_(Frontend)
+    container_name: stockViever2
+    environment:
+      - MONGODB_URL=mongodb://127.0.0.1:27017,127.0.0.1:27018,127.0.0.1:27019/?replicaSet=rs0
+      - MONGODB_DB:stockmarket
+      - MONGODB_COLLECTION:stocks
+    ports:
+      - 3000:3000
+    #networks:
+    #  - frontend
+    #  - backend
+  
+  nginx: 
+    image: nginx:latest
+  ports:
+    - 8080:80
+  volumes:
+    - ./06_nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+  depends_on:
+    - live-viever1
+    - live-viever2
+  network:
+    - frontend
 
 networks:
   backend:

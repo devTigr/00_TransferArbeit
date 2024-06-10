@@ -29,13 +29,11 @@ type StockEvent struct {
 
 func main() {
 	//Connect to DBCluster
-	client, err := mongo.NewClient(options.Client().ApplyURI("mongodb://localhost:27017/"))
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	client, err := mongo.Connect(ctx, options.Client().ApplyURI("mongodb://localhost:27017/"))
 	failOnError(err, "Failed to create a user for MongoDB")
-
-	ctx, _ := context.WithTimeout(context.Background(), 10*time.Second)
-	err = client.Connect(ctx)
-	failOnError(err, "Failed to connect to MongoDB")
-
 	defer client.Disconnect(ctx)
 
 	//connect to RabbitMQ
@@ -63,6 +61,7 @@ func main() {
 		false,     // no-wait
 		nil,       // arguments
 	)
+	failOnError(err, "Failed to declare a queue")
 
 	msgs, err := ch.Consume(
 		q.Name, // queue
