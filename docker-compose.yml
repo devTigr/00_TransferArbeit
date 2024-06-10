@@ -22,7 +22,6 @@ services:
       - RABBITMQ_DEFAULT_PASS=supersecret123
     networks:
       - backend
-      - frontend
 
   #DB-Cluster
   mongo1:
@@ -39,6 +38,8 @@ services:
       - "host.docker.internal:host-gateway"
     ports:
       - 27017:27017
+    networks:
+      - backend
     volumes:
       - ./04_MongoDB_(Clustered)/mongo1_data:/data/db
       - ./04_MongoDB_(Clustered)/mongo1_config:/data/configdb
@@ -49,6 +50,8 @@ services:
       - "host.docker.internal:host-gateway"
     ports:
       - 27018:27018
+    networks:
+      - backend
     volumes:
       - ./04_MongoDB_(Clustered)/mongo2_data:/data/db
       - ./04_MongoDB_(Clustered)/mongo2_config:/data/configdb
@@ -59,6 +62,8 @@ services:
       - "host.docker.internal:host-gateway"
     ports:
       - 27019:27019
+    networks:
+      - backend
     volumes:
       - ./04_MongoDB_(Clustered)/mongo3_data:/data/db
       - ./04_MongoDB_(Clustered)/mongo3_config:/data/configdb
@@ -66,6 +71,15 @@ services:
   live-viever:
     build: ./05_Stock-Liveview_(Frontend)
     container_name: stockViever
+    environment:
+      - MONGODB_URL=mongodb://127.0.0.1:27017,127.0.0.1:27018,127.0.0.1:27019/?replicaSet=rs0
+      - MONGODB_DB:stockmarket
+      - MONGODB_COLLECTION:stocks
+    ports:
+      -3000:3000
+    #networks:
+    #  - frontend
+    #  - backend
 
 networks:
   backend:
