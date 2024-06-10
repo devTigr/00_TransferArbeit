@@ -102,7 +102,7 @@ func main() {
 
 			// Write the average price to MongoDB
 			collection := client.Database("stockmarket").Collection("stocks")
-			_, err := collection.InsertOne(ctx, bson.M{"company": event.Company, "average_price": averagePrice})
+			_, err := collection.InsertOne(ctx, bson.M{"name": queueName, "average_price": averagePrice})
 			failOnError(err, "Failed to insert average price into MongoDB")
 		}
 	}
