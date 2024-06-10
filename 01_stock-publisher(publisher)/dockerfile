@@ -1,7 +1,9 @@
 FROM golang:1.22.2
 
-COPY ./stock-bublisher ./app
 WORKDIR /app
+COPY ./stock-bublisher/main.go .
+COPY ./stock-bublisher/go.mod .
 
-RUN go buld main.go
-CMD main
+RUN go buld -o main.go
+
+ENTRYPOINT ["/app/bin"]
