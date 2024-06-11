@@ -1,7 +1,7 @@
 services:
   pub:
-    build: ./01_stock-publisher(publisher) 
-    #image: ##von mir gepushtes image von Patricks GitHub
+    #build: ./01_stock-publisher(publisher) 
+    image: devtigr/ta_publisher ##von mir gepushtes image src von Patricks GitHub
     container_name: stockPublisher
     environment:
       - RABBITMQ_URL=amqp://stockmarket:supersecret123@rabbitmq:5672/
@@ -31,39 +31,42 @@ services:
       interval: 1m30s
       timeout: 30s
       retries: 5
-      start_period: 0s
+      start_period: 1s
     image: mongo:7.0
     command: ["--replSet", "rs0", "--bind_ip_all", "--port", "27017"]
-    extra_hosts:
-      - "host.docker.internal:host-gateway"
+    environment:
+      - MONGO_INITDB_ROOT_USERNAME=mongodb
+      - MONGO_INITDB_ROOT_PASSWORD=supersecret321
+    #extra_hosts:
+    #  - "host.docker.internal:host-gateway"
     ports:
       - 27017:27017
     networks:
-      - backend
+      - dbcluster
     volumes:
       - ./04_MongoDB_(Clustered)/mongo1_data:/data/db
       - ./04_MongoDB_(Clustered)/mongo1_config:/data/configdb
   mongo2:
     image: mongo:7.0
     command: ["--replSet", "rs0", "--bind_ip_all", "--port", "27018"]
-    extra_hosts:
-      - "host.docker.internal:host-gateway"
+    #extra_hosts:
+    #  - "host.docker.internal:host-gateway"
     ports:
       - 27018:27018
     networks:
-      - backend
+      - dbcluster
     volumes:
       - ./04_MongoDB_(Clustered)/mongo2_data:/data/db
       - ./04_MongoDB_(Clustered)/mongo2_config:/data/configdb
   mongo3:
     image: mongo:7.0
     command: ["--replSet", "rs0", "--bind_ip_all", "--port", "27019"]
-    extra_hosts:
-      - "host.docker.internal:host-gateway"
+    #extra_hosts:
+    #  - "host.docker.internal:host-gateway"
     ports:
       - 27019:27019
     networks:
-      - backend
+      - dbcluster
     volumes:
       - ./04_MongoDB_(Clustered)/mongo3_data:/data/db
       - ./04_MongoDB_(Clustered)/mongo3_config:/data/configdb
@@ -72,35 +75,33 @@ services:
     build: ./03_Consumer_(Eigenentwicklung)
     environment:
       - RABBITMQ_URL=amqp://stockmarket:supersecret123@rabbitmq:5672/        
-      - MONGODB_URL=mongodb://mongo1:27017,mongo2:27018,mongo3:27019/?replicaSet=rs0
+      - MONGODB_URL=mongodb://mongodb:supersecret321@mongo1:27017,mongo2:27018,mongo3:27019/?replicaSet=rs0
       - QUEUENAME=AAPL
     depends_on:
       - rabbitmq
     networks:
       - backend
-
   consumer2:
     build: ./03_Consumer_(Eigenentwicklung)
     environment:
       - RABBITMQ_URL=amqp://stockmarket:supersecret123@rabbitmq:5672/        
-      - MONGODB_URL=mongodb://mongo1:27017,mongo2:27018,mongo3:27019/?replicaSet=rs0
+      - MONGODB_URL=mongodb://mongodb:supersecret321@mongo1:27017,mongo2:27018,mongo3:27019/?replicaSet=rs0
       - QUEUENAME=MSFT
     depends_on:
       - rabbitmq
     networks:
       - backend
-
   consumer3:
     build: ./03_Consumer_(Eigenentwicklung)
     environment:
       - RABBITMQ_URL=amqp://stockmarket:supersecret123@rabbitmq:5672/        
-      - MONGODB_URL=mongodb://mongo1:27017,mongo2:27018,mongo3:27019/?replicaSet=rs0
+      - MONGODB_URL=mongodb://mongodb:supersecret321@mongo1:27017,mongo2:27018,mongo3:27019/?replicaSet=rs0
       - QUEUENAME=TSLA
     depends_on:
       - rabbitmq
     networks:
-      - backend
-    
+      - backend   
+
   live-viever1:
     build: ./05_Stock-Liveview_(Frontend)
     container_name: stockViever1
@@ -110,10 +111,9 @@ services:
       - MONGODB_COLLECTION:stocks
     ports:
       - 3000:3000
-    #networks:
-    #  - frontend
-    #  - backend
-
+    networks:
+      - frontend
+      - backend
   live-viever2:
     build: ./05_Stock-Liveview_(Frontend)
     container_name: stockViever2
@@ -123,9 +123,9 @@ services:
       - MONGODB_COLLECTION:stocks
     ports:
       - 3001:3000
-    #networks:
-    #  - frontend
-    #  - backend
+    networks:
+      - frontend
+      - backend
   
   nginx: 
     image: nginx:latest
@@ -141,6 +141,8 @@ networks:
   backend:
     driver: bridge
   frontend:
+    driver: bridge
+  dbcluster:
     driver: bridge
   
 volumes:
