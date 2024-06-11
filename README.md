@@ -10,39 +10,47 @@ Dieses Dokument dient ab hier also nur noch der Übersicht und Organisiation des
 
 Simmuliert Daten von Aktien und serndet diese an den MessageBroker
 
-- [ ] zur Verfügung gestellt -> https://github.com/SwitzerChees/stock-publisher
-- [ ] Dockerfile dazu schreiben (Go 1.22.2, port localhost:5672)
-- [ ] image erstellen
-- [ ] image tagen
-- [ ] image pushen
-- [ ] im Docker Compose integrieren
+- [X] zur Verfügung gestellt -> https://github.com/SwitzerChees/stock-publisher
+- [X] Dockerfile dazu schreiben (Go 1.22.2, port localhost:5672)
+- [X] image erstellen
+- [X] image tagen
+- [X] image pushen
+- [X] im docker-compose integrieren  -> devtigr/ta_publisher
 
 ## Rabbit MQ (Massage Broker)
 
 Entkoppelt den Datentransfer vom Publisher zum Subscriber
 
-- [ ] Dockerfile
-- [ ] image erstellen, tagen, pushen
-- [ ] im Docker Compose integrieren
+- [X] im docker-compose integriert
 
 ## Consumer (Eigenentwicklung)
 
 Verarbeitet die Daten die vom MessageBroker ge"Cued" werden.
 
-- [ ] Consumer in eigener Sprache schreiben
-- [ ] Dockerfile dazu erstellen
+- [X] Consumer in eigener Sprache schreiben
+- [X] Dockerfile dazu erstellen
 - [ ] image erstellen, tagen, pushen
-- [ ] im Docker Compose integrieren
+- [ ] im docker-compose integrieren
 
 ## MongoDB (Cluster)
 
 Speichert die verarbeiteten Daten in einer Hochverfügbaren ge"cluster"ten Datenbank
 
+- [ ] im docker-compose integrieren
+
 ## Frontend (Stock-Liveview von GitHub)
 
 Zeigt die verarbeiteten Daten in einer Liveview
 
+- [X] zur Verfügung gestellt -> https://github.com/SwitzerChees/stock-liveview
+- [X] Dockerfile dazu schreiben (node:22, npm install, npm start)
+- [ ] image erstellen
+- [ ] image tagen
+- [ ] image pushen
+- [ ] im Docker Compose integrieren
 
 ## NGINX (Load Balancer)
 
 Organisiert die Anfragen der Frontends.
+
+- [X] im Docker Compose integrieren
