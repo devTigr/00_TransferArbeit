@@ -1,9 +1,12 @@
+version: '3.8'
+
 x-consumer: &consumer
-  build: ./03_Consumer_(Eigenentwicklung)
+  image: ditfedi1/stock-consumer
   depends_on:
     - rabbitmq
   networks:
     - backend
+  restart: always
 
 x-mongo: &mongo
   image: mongo:7.0
@@ -13,13 +16,15 @@ x-mongo: &mongo
   volumes:
     - ./04_MongoDB/mongo_data:/data/db
     - ./04_MongoDB/mongo_config:/data/configdb
+  restart: always
 
 x-viewer: &viewer
-  build: ./05_Stock-Liveview_(Frontend)
+  image: ditfedi1/stock-viewer
   environment:
-    - MONGODB_URL=mongodb://mongo1:27017,mongo2:27018,mongo3:27019/?replicaSet=rs0
-    - MONGODB_DB=stockmarket
-    - MONGODB_COLLECTION=stocks
+    PORT: "3000"
+    MONGODB_URL: "mongodb://mongo1:27017,mongo2:27018,mongo3:27019/?replicaSet=rs0"
+    MONGODB_DB: stockmarket
+    MONGODB_COLLECTION: stocks
   depends_on:
     - mongo1
     - mongo2
@@ -29,13 +34,15 @@ x-viewer: &viewer
   networks:
     - backend
     - frontend
+  restart: always
 
 services:
   pub:
-    build: ./01_stock-publisher(publisher)
+    image: ditfedi1/stock-publisher
     container_name: stockPublisher
     environment:
-      - RABBITMQ_URL=amqp://stockmarket:supersecret123@rabbitmq:5672/
+      RABBITMQ_URL: "amqp://stockmarket:supersecret123@rabbitmq:5672/"
+      TICKER_INTERVAL: 10
     restart: always
     depends_on:
       - rabbitmq
@@ -75,6 +82,9 @@ services:
       - ./04_MongoDB/mongo1_config:/data/configdb
     ports:
       - 27017:27017
+    expose:
+      - 27017
+    restart: always
 
   mongo2:
     container_name: mongo2
@@ -85,6 +95,9 @@ services:
       - ./04_MongoDB/mongo2_config:/data/configdb
     ports:
       - 27018:27018
+    expose:
+      - 27018
+    restart: always
 
   mongo3:
     container_name: mongo3
@@ -95,48 +108,52 @@ services:
       - ./04_MongoDB/mongo3_config:/data/configdb
     ports:
       - 27019:27019
+    expose:
+      - 27019
+    restart: always
 
-  consumer1:
-    container_name: consumer1
+  consumer_aapl:
     <<: *consumer
     environment:
-      - QUEUENAME=AAPL
-      - RABBITMQ_URL=amqp://stockmarket:supersecret123@rabbitmq:5672/
-      - MONGODB_URL=mongodb://mongo1:27017,mongo2:27018,mongo3:27019/?replicaSet=rs0
+      QUEUE_NAME: "AAPL"
+      MESSAGE_GROUP_SIZE: "1000"
+      RABBITMQ_URL: "amqp://stockmarket:supersecret123@rabbitmq:5672/"
+      MONGODB_URL: "mongodb://mongo1:27017,mongo2:27018,mongo3:27019/?replicaSet=rs0"
+    restart: always
 
-  consumer2:
-    container_name: consumer2
+  consumer_msft:
     <<: *consumer
     environment:
-      - QUEUENAME=MSFT
-      - RABBITMQ_URL=amqp://stockmarket:supersecret123@rabbitmq:5672/
-      - MONGODB_URL=mongodb://mongo1:27017,mongo2:27018,mongo3:27019/?replicaSet=rs0
+      QUEUE_NAME: "MSFT"
+      MESSAGE_GROUP_SIZE: "1000"
+      RABBITMQ_URL: "amqp://stockmarket:supersecret123@rabbitmq:5672/"
+      MONGODB_URL: "mongodb://mongo1:27017,mongo2:27018,mongo3:27019/?replicaSet=rs0"
+    restart: always
 
-  consumer3:
-    container_name: consumer3
+  consumer_tsla:
     <<: *consumer
     environment:
-      - QUEUENAME=TSLA
-      - RABBITMQ_URL=amqp://stockmarket:supersecret123@rabbitmq:5672/
-      - MONGODB_URL=mongodb://mongo1:27017,mongo2:27018,mongo3:27019/?replicaSet=rs0
+      QUEUE_NAME: "TSLA"
+      MESSAGE_GROUP_SIZE: "1000"
+      RABBITMQ_URL: "amqp://stockmarket:supersecret123@rabbitmq:5672/"
+      MONGODB_URL: "mongodb://mongo1:27017,mongo2:27018,mongo3:27019/?replicaSet=rs0"
+    restart: always
       
   live-viewer1:
     container_name: stockViewer1
     <<: *viewer
-    ports:
-      - 3000:3000
+    restart: always
 
   live-viewer2:
     container_name: stockViewer2
     <<: *viewer
-    ports:
-      - 3001:3000
+    restart: always
 
   nginx:
     container_name: nginx
     image: nginx:latest
     ports:
-      - 8080:80
+      - 3000:3000
     volumes:
       - ./06_nginx/nginx.conf:/etc/nginx/nginx.conf:ro
     depends_on:
@@ -144,6 +161,7 @@ services:
       - live-viewer2
     networks:
       - frontend
+    restart: always
 
 networks:
   backend:
