@@ -1,10 +1,48 @@
+version: '3.8'
+
+x-consumer: &consumer
+  image: ditfedi1/stock-consumer
+  depends_on:
+    - rabbitmq
+  networks:
+    - backend
+  restart: always
+
+x-mongo: &mongo
+  image: mongo:7.0
+  command: ["mongod", "--replSet", "rs0", "--bind_ip_all"]
+  networks:
+    - backend
+  volumes:
+    - ./04_MongoDB/mongo_data:/data/db
+    - ./04_MongoDB/mongo_config:/data/configdb
+  restart: always
+
+x-viewer: &viewer
+  image: ditfedi1/stock-viewer
+  environment:
+    PORT: "3000"
+    MONGODB_URL: "mongodb://mongo1:27017,mongo2:27018,mongo3:27019/?replicaSet=rs0"
+    MONGODB_DB: stockmarket
+    MONGODB_COLLECTION: stocks
+  depends_on:
+    - mongo1
+    - mongo2
+    - mongo3
+    - rabbitmq
+    - pub
+  networks:
+    - backend
+    - frontend
+  restart: always
+
 services:
   pub:
-    #build: ./01_stock-publisher(publisher) 
-    image: devtigr/ta_publisher ##von mir gepushtes image src von Patricks GitHub
+    image: ditfedi1/stock-publisher
     container_name: stockPublisher
     environment:
-      - RABBITMQ_URL=amqp://stockmarket:supersecret123@rabbitmq:5672/
+      RABBITMQ_URL: "amqp://stockmarket:supersecret123@rabbitmq:5672/"
+      TICKER_INTERVAL: 10
     restart: always
     depends_on:
       - rabbitmq
@@ -12,8 +50,13 @@ services:
       - backend
 
   rabbitmq:
+    container_name: rabbitmq
     image: rabbitmq:3-management
     restart: always
+    depends_on:
+      - mongo1
+      - mongo2
+      - mongo3
     ports:
       - 5672:5672   # für message transfers
       - 15672:15672 # für management Dashboard
@@ -23,133 +66,105 @@ services:
     networks:
       - backend
 
-  #DB-Cluster
+  # DB-Cluster
   mongo1:
-    #nur einmal
+    container_name: mongo1
+    <<: *mongo
+    command: ["mongod", "--replSet", "rs0", "--bind_ip_all", "--port", "27017"]
     healthcheck:
-      test: echo "try { rs.status() } catch (err) { rs.initiate({_id:'rs0',members:[{_id:0,host:'host.docker.internal:27017',priority:1},{_id:1,host:'host.docker.internal:27018',priority:0.5},{_id:2,host:'host.docker.internal:27019',priority:0.5}]}) }" | mongosh --port 27017 --quiet
-      interval: 1m30s
+      test: echo "rs.initiate({_id:'rs0',members:[{_id:0,host:'mongo1:27017',priority:1},{_id:1,host:'mongo2:27018',priority:0.5},{_id:2,host:'mongo3:27019',priority:0.5}]})" | mongosh --port 27017 --quiet && echo "rs.status()" | mongosh --port 27017 --quiet
+      interval: 1m
       timeout: 30s
       retries: 5
-      start_period: 1s
-    image: mongo:7.0
-    command: ["--replSet", "rs0", "--bind_ip_all", "--port", "27017"]
-    environment:
-      - MONGO_INITDB_ROOT_USERNAME=mongodb
-      - MONGO_INITDB_ROOT_PASSWORD=supersecret321
-    #extra_hosts:
-    #  - "host.docker.internal:host-gateway"
+      start_period: 30s
+    volumes:
+      - ./04_MongoDB/mongo1_data:/data/db
+      - ./04_MongoDB/mongo1_config:/data/configdb
     ports:
       - 27017:27017
-    networks:
-      - dbcluster
-    volumes:
-      - ./04_MongoDB_(Clustered)/mongo1_data:/data/db
-      - ./04_MongoDB_(Clustered)/mongo1_config:/data/configdb
+    expose:
+      - 27017
+    restart: always
+
   mongo2:
-    image: mongo:7.0
-    command: ["--replSet", "rs0", "--bind_ip_all", "--port", "27018"]
-    #extra_hosts:
-    #  - "host.docker.internal:host-gateway"
+    container_name: mongo2
+    <<: *mongo
+    command: ["mongod", "--replSet", "rs0", "--bind_ip_all", "--port", "27018"]
+    volumes:
+      - ./04_MongoDB/mongo2_data:/data/db
+      - ./04_MongoDB/mongo2_config:/data/configdb
     ports:
       - 27018:27018
-    networks:
-      - dbcluster
-    volumes:
-      - ./04_MongoDB_(Clustered)/mongo2_data:/data/db
-      - ./04_MongoDB_(Clustered)/mongo2_config:/data/configdb
+    expose:
+      - 27018
+    restart: always
+
   mongo3:
-    image: mongo:7.0
-    command: ["--replSet", "rs0", "--bind_ip_all", "--port", "27019"]
-    #extra_hosts:
-    #  - "host.docker.internal:host-gateway"
+    container_name: mongo3
+    <<: *mongo
+    command: ["mongod", "--replSet", "rs0", "--bind_ip_all", "--port", "27019"]
+    volumes:
+      - ./04_MongoDB/mongo3_data:/data/db
+      - ./04_MongoDB/mongo3_config:/data/configdb
     ports:
       - 27019:27019
-    networks:
-      - dbcluster
-    volumes:
-      - ./04_MongoDB_(Clustered)/mongo3_data:/data/db
-      - ./04_MongoDB_(Clustered)/mongo3_config:/data/configdb
+    expose:
+      - 27019
+    restart: always
 
-  consumer1:
-    build: ./03_Consumer_(Eigenentwicklung)
+  consumer_aapl:
+    <<: *consumer
     environment:
-      - RABBITMQ_URL=amqp://stockmarket:supersecret123@rabbitmq:5672/        
-      - MONGODB_URL=mongodb://mongodb:supersecret321@mongo1:27017,mongo2:27018,mongo3:27019/?replicaSet=rs0
-      - QUEUENAME=AAPL
-    depends_on:
-      - rabbitmq
-    networks:
-      - backend
-  consumer2:
-    build: ./03_Consumer_(Eigenentwicklung)
-    environment:
-      - RABBITMQ_URL=amqp://stockmarket:supersecret123@rabbitmq:5672/        
-      - MONGODB_URL=mongodb://mongodb:supersecret321@mongo1:27017,mongo2:27018,mongo3:27019/?replicaSet=rs0
-      - QUEUENAME=MSFT
-    depends_on:
-      - rabbitmq
-    networks:
-      - backend
-  consumer3:
-    build: ./03_Consumer_(Eigenentwicklung)
-    environment:
-      - RABBITMQ_URL=amqp://stockmarket:supersecret123@rabbitmq:5672/        
-      - MONGODB_URL=mongodb://mongodb:supersecret321@mongo1:27017,mongo2:27018,mongo3:27019/?replicaSet=rs0
-      - QUEUENAME=TSLA
-    depends_on:
-      - rabbitmq
-    networks:
-      - backend   
+      QUEUE_NAME: "AAPL"
+      MESSAGE_GROUP_SIZE: "1000"
+      RABBITMQ_URL: "amqp://stockmarket:supersecret123@rabbitmq:5672/"
+      MONGODB_URL: "mongodb://mongo1:27017,mongo2:27018,mongo3:27019/?replicaSet=rs0"
+    restart: always
 
-  live-viever1:
-    build: ./05_Stock-Liveview_(Frontend)
-    container_name: stockViever1
+  consumer_msft:
+    <<: *consumer
     environment:
-      - MONGODB_URL=mongodb://127.0.0.1:27017,127.0.0.1:27018,127.0.0.1:27019/?replicaSet=rs0
-      - MONGODB_DB:stockmarket
-      - MONGODB_COLLECTION:stocks
-    ports:
-      - 3000:3000
-    networks:
-      - frontend
-      - backend
-  live-viever2:
-    build: ./05_Stock-Liveview_(Frontend)
-    container_name: stockViever2
+      QUEUE_NAME: "MSFT"
+      MESSAGE_GROUP_SIZE: "1000"
+      RABBITMQ_URL: "amqp://stockmarket:supersecret123@rabbitmq:5672/"
+      MONGODB_URL: "mongodb://mongo1:27017,mongo2:27018,mongo3:27019/?replicaSet=rs0"
+    restart: always
+
+  consumer_tsla:
+    <<: *consumer
     environment:
-      - MONGODB_URL=mongodb://127.0.0.1:27017,127.0.0.1:27018,127.0.0.1:27019/?replicaSet=rs0
-      - MONGODB_DB:stockmarket
-      - MONGODB_COLLECTION:stocks
-    ports:
-      - 3001:3000
-    networks:
-      - frontend
-      - backend
-  
-  nginx: 
+      QUEUE_NAME: "TSLA"
+      MESSAGE_GROUP_SIZE: "1000"
+      RABBITMQ_URL: "amqp://stockmarket:supersecret123@rabbitmq:5672/"
+      MONGODB_URL: "mongodb://mongo1:27017,mongo2:27018,mongo3:27019/?replicaSet=rs0"
+    restart: always
+      
+  live-viewer1:
+    container_name: stockViewer1
+    <<: *viewer
+    restart: always
+
+  live-viewer2:
+    container_name: stockViewer2
+    <<: *viewer
+    restart: always
+
+  nginx:
+    container_name: nginx
     image: nginx:latest
     ports:
-      - 8080:80
+      - 3000:3000
     volumes:
       - ./06_nginx/nginx.conf:/etc/nginx/nginx.conf:ro
     depends_on:
-      - live-viever1
-      - live-viever2
+      - live-viewer1
+      - live-viewer2
+    networks:
+      - frontend
+    restart: always
 
 networks:
   backend:
     driver: bridge
   frontend:
     driver: bridge
-  dbcluster:
-    driver: bridge
-  
-volumes:
-  mongo1_data:
-  mongo1_config:
-  mongo2_data:
-  mongo2_config:
-  mongo3_data:
-  mongo3_config:
-
