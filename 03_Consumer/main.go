@@ -68,13 +68,13 @@ func saveAvgToMongo(collection *mongo.Collection, avgPrice float64) {
 
 	_, err := collection.InsertOne(ctx, doc)
 	checkError(err, "Insert to MongoDB failed")
+	log.Printf("Successfully inserted average price %f into MongoDB", avgPrice)
 }
 
-func processMessages(ch <-chan amqp.Delivery, collection *mongo.Collection, wg *sync.WaitGroup) {
-	defer wg.Done()
+func processMessages(msgs []amqp.Delivery, collection *mongo.Collection) {
 	var prices []float64
 
-	for msg := range ch {
+	for _, msg := range msgs {
 		var stock StockMsg
 		err := json.Unmarshal(msg.Body, &stock)
 		if err != nil {
@@ -82,14 +82,19 @@ func processMessages(ch <-chan amqp.Delivery, collection *mongo.Collection, wg *
 			continue
 		}
 		prices = append(prices, stock.Price)
+		log.Printf("Successfully read message from publisher: %s", msg.Body)
 	}
 
 	if len(prices) > 0 {
 		saveAvgToMongo(collection, avg(prices))
 	}
+
+	for _, msg := range msgs {
+		msg.Ack(false)
+	}
 }
 
-func readStockMsgs(conn *amqp.Connection, collection *mongo.Collection) {
+func readStockMsgs(conn *amqp.Connection, collection *mongo.Collection, groupSize int) {
 	ch, err := conn.Channel()
 	checkError(err, "Channel opening failed")
 	defer ch.Close()
@@ -100,30 +105,41 @@ func readStockMsgs(conn *amqp.Connection, collection *mongo.Collection) {
 	)
 	checkError(err, "Queue declaration failed")
 
-	groupSize, err := strconv.Atoi(getEnv("MESSAGE_GROUP_SIZE"))
-	checkError(err, "Group size parsing failed")
-
 	msgs, err := ch.Consume(
-		q.Name, "", true, false, false, false, nil,
+		q.Name, "", false, false, false, false, nil,
 	)
 	checkError(err, "Message consumption failed")
 
-	msgChannel := make(chan amqp.Delivery, groupSize)
 	var wg sync.WaitGroup
+	msgBatch := make([]amqp.Delivery, 0, groupSize)
+	batchLock := sync.Mutex{}
 
 	go func() {
 		for msg := range msgs {
-			msgChannel <- msg
-			if len(msgChannel) == groupSize {
-				close(msgChannel)
+			batchLock.Lock()
+			msgBatch = append(msgBatch, msg)
+			if len(msgBatch) >= groupSize {
 				wg.Add(1)
-				go processMessages(msgChannel, collection, &wg)
-				msgChannel = make(chan amqp.Delivery, groupSize)
+				go func(batch []amqp.Delivery) {
+					defer wg.Done()
+					processMessages(batch, collection)
+				}(msgBatch)
+				msgBatch = make([]amqp.Delivery, 0, groupSize)
 			}
+			batchLock.Unlock()
 		}
-		close(msgChannel)
-		wg.Wait()
 	}()
+
+	// Handle graceful shutdown
+	c := make(chan os.Signal, 1)
+	// signal.Notify(c, os.Interrupt)
+	<-c
+	batchLock.Lock()
+	if len(msgBatch) > 0 {
+		processMessages(msgBatch, collection)
+	}
+	batchLock.Unlock()
+	wg.Wait()
 }
 
 func main() {
@@ -134,7 +150,10 @@ func main() {
 
 	collection := connectMongo()
 
-	go readStockMsgs(conn, collection)
+	groupSize, err := strconv.Atoi(getEnv("MESSAGE_GROUP_SIZE"))
+	checkError(err, "Group size parsing failed")
+
+	go readStockMsgs(conn, collection, groupSize)
 
 	log.Println("Stock publishers are running. Press CTRL+C to exit.")
 	select {}

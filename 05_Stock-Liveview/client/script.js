@@ -30,7 +30,8 @@ const renderPrices = () => {
     h2.innerText = price.company;
     const span = document.createElement("span");
     span.classList.add("text-xl");
-    span.innerText = price.avgPrice;
+    // Preis auf eine Dezimalstelle runden
+    span.innerText = parseFloat(price.avgPrice).toFixed(1);
     div.appendChild(h2);
     div.appendChild(span);
     pricesDiv.appendChild(div);

@@ -1,5 +1,3 @@
-version: '3.8'
-
 x-consumer: &consumer
   image: ditfedi1/stock-consumer
   depends_on:
@@ -22,9 +20,9 @@ x-viewer: &viewer
   image: ditfedi1/stock-viewer
   environment:
     PORT: "3000"
-    MONGODB_URL: "mongodb://mongo1:27017,mongo2:27018,mongo3:27019/?replicaSet=rs0"
-    MONGODB_DB: stockmarket
-    MONGODB_COLLECTION: stocks
+    MONGODB_URL: ${MONGODB_URL}
+    MONGODB_DB: ${MONGODB_DB}
+    MONGODB_COLLECTION: ${MONGODB_COLLECTION}
   depends_on:
     - mongo1
     - mongo2
@@ -41,8 +39,8 @@ services:
     image: ditfedi1/stock-publisher
     container_name: stockPublisher
     environment:
-      RABBITMQ_URL: "amqp://stockmarket:supersecret123@rabbitmq:5672/"
-      TICKER_INTERVAL: 10
+      RABBITMQ_URL: ${RABBITMQ_URL}
+      TICKER_INTERVAL: ${TICKER_INTERVAL}
     restart: always
     depends_on:
       - rabbitmq
@@ -61,8 +59,8 @@ services:
       - 5672:5672   # für message transfers
       - 15672:15672 # für management Dashboard
     environment:
-      - RABBITMQ_DEFAULT_USER=stockmarket
-      - RABBITMQ_DEFAULT_PASS=supersecret123
+      RABBITMQ_DEFAULT_USER: ${RABBITMQ_DEFAULT_USER}
+      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_DEFAULT_PASS}
     networks:
       - backend
 
@@ -116,29 +114,29 @@ services:
     <<: *consumer
     environment:
       QUEUE_NAME: "AAPL"
-      MESSAGE_GROUP_SIZE: "1000"
-      RABBITMQ_URL: "amqp://stockmarket:supersecret123@rabbitmq:5672/"
-      MONGODB_URL: "mongodb://mongo1:27017,mongo2:27018,mongo3:27019/?replicaSet=rs0"
+      MESSAGE_GROUP_SIZE: ${MESSAGE_GROUP_SIZE}
+      RABBITMQ_URL: ${RABBITMQ_URL}
+      MONGODB_URL: ${MONGODB_URL}
     restart: always
 
   consumer_msft:
     <<: *consumer
     environment:
       QUEUE_NAME: "MSFT"
-      MESSAGE_GROUP_SIZE: "1000"
-      RABBITMQ_URL: "amqp://stockmarket:supersecret123@rabbitmq:5672/"
-      MONGODB_URL: "mongodb://mongo1:27017,mongo2:27018,mongo3:27019/?replicaSet=rs0"
+      MESSAGE_GROUP_SIZE: ${MESSAGE_GROUP_SIZE}
+      RABBITMQ_URL: ${RABBITMQ_URL}
+      MONGODB_URL: ${MONGODB_URL}
     restart: always
 
   consumer_tsla:
     <<: *consumer
     environment:
       QUEUE_NAME: "TSLA"
-      MESSAGE_GROUP_SIZE: "1000"
-      RABBITMQ_URL: "amqp://stockmarket:supersecret123@rabbitmq:5672/"
-      MONGODB_URL: "mongodb://mongo1:27017,mongo2:27018,mongo3:27019/?replicaSet=rs0"
+      MESSAGE_GROUP_SIZE: ${MESSAGE_GROUP_SIZE}
+      RABBITMQ_URL: ${RABBITMQ_URL}
+      MONGODB_URL: ${MONGODB_URL}
     restart: always
-      
+
   live-viewer1:
     container_name: stockViewer1
     <<: *viewer
