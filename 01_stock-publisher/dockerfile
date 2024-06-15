@@ -1,9 +1,19 @@
-FROM golang:latest
+# Build stage
+FROM golang:latest AS build
 
 WORKDIR /app
 
 COPY . .
 
-RUN go build -o stock_publisher main.go
+RUN go mod download
+RUN go mod tidy
+RUN CGO_ENABLED=0 GOOS=linux go build -a -installsuffix cgo -o stock_publisher main.go
+
+# Run stage
+FROM scratch
+
+WORKDIR /root/
+
+COPY --from=build /app/stock_publisher .
 
 CMD ["./stock_publisher"]

@@ -43,10 +43,18 @@ const getLatestPrices = async () => {
       },
     ])
     .toArray();
-  const companies = result.map((entry) => entry.latestEntry);
+
+  const companies = result.map((entry) => {
+    if (entry.latestEntry.price) {
+      entry.latestEntry.price = Number(entry.latestEntry.price.toFixed(1));
+    }
+    return entry.latestEntry;
+  });
+
   companies.sort((a, b) => a.company.localeCompare(b.company));
   return companies;
 };
+
 
 const sendPrices = async (ws, prices) => {
   ws.send(JSON.stringify({ type: "prices", prices }));
