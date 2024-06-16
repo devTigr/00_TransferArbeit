@@ -82,7 +82,6 @@ services:
       - 27017:27017
     expose:
       - 27017
-    restart: always
 
   mongo2:
     container_name: mongo2
@@ -95,7 +94,6 @@ services:
       - 27018:27018
     expose:
       - 27018
-    restart: always
 
   mongo3:
     container_name: mongo3
@@ -108,7 +106,6 @@ services:
       - 27019:27019
     expose:
       - 27019
-    restart: always
 
   consumer_aapl:
     <<: *consumer
@@ -117,7 +114,6 @@ services:
       MESSAGE_GROUP_SIZE: ${MESSAGE_GROUP_SIZE}
       RABBITMQ_URL: ${RABBITMQ_URL}
       MONGODB_URL: ${MONGODB_URL}
-    restart: always
 
   consumer_msft:
     <<: *consumer
@@ -126,7 +122,6 @@ services:
       MESSAGE_GROUP_SIZE: ${MESSAGE_GROUP_SIZE}
       RABBITMQ_URL: ${RABBITMQ_URL}
       MONGODB_URL: ${MONGODB_URL}
-    restart: always
 
   consumer_tsla:
     <<: *consumer
@@ -135,17 +130,14 @@ services:
       MESSAGE_GROUP_SIZE: ${MESSAGE_GROUP_SIZE}
       RABBITMQ_URL: ${RABBITMQ_URL}
       MONGODB_URL: ${MONGODB_URL}
-    restart: always
 
   live-viewer1:
     container_name: stockViewer1
     <<: *viewer
-    restart: always
 
   live-viewer2:
     container_name: stockViewer2
     <<: *viewer
-    restart: always
 
   nginx:
     container_name: nginx
